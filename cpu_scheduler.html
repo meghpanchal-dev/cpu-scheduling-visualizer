@@ -1,0 +1,543 @@
+<!doctype html>
+<html>
+  <head>
+    <title>CPU Scheduling Simulator</title>
+
+    <style>
+      body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: #0d1117;
+        color: #e6edf3;
+      }
+
+      h1 {
+        text-align: center;
+        margin: 20px;
+        font-weight: 500;
+        letter-spacing: 1px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 20px;
+        background: #161b22;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: #8b949e;
+        margin-bottom: 5px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+      }
+
+      input,
+      select {
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        background: #0d1117;
+        color: #e6edf3;
+        font-size: 14px;
+        transition: 0.2s;
+      }
+
+      input:focus,
+      select:focus {
+        border-color: #3b82f6;
+        outline: none;
+      }
+
+      button {
+        width: 100%;
+        padding: 11px;
+        margin-top: 10px;
+        border: none;
+        border-radius: 8px;
+        background: #238636;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      button:hover {
+        background: #2ea043;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 18px;
+        border-collapse: collapse;
+        border-radius: 10px;
+      }
+
+      th {
+        background: #21262d;
+        font-weight: 500;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        text-align: center;
+      }
+
+      tr {
+        border-bottom: 1px solid #30363d;
+      }
+
+      tr:hover {
+        background: #1f2933;
+      }
+
+      #gantt {
+        margin-top: 18px;
+        display: flex;
+        height: 45px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #30363d;
+      }
+
+      .block {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        color: white;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        border-right: 1px solid #0d1117;
+      }
+
+      .stats {
+        margin-top: 12px;
+        font-size: 14px;
+        color: #8b949e;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>CPU Scheduling Simulator</h1>
+
+    <div class="container">
+      <div class="grid">
+        <div class="field">
+          <label for="n">No. of Processes</label>
+          <input id="n" />
+        </div>
+
+        <div class="field">
+          <label for="algo">Algorithm</label>
+          <select id="algo">
+            <option>FCFS</option>
+            <option>SJF</option>
+            <option>Round Robin</option>
+            <option>SRTF</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="bt">Burst Times (e.g. 5 3 2)</label>
+          <input id="bt" />
+        </div>
+
+        <div class="field">
+          <label for="at">Arrival Times (optional)</label>
+          <input id="at" />
+        </div>
+
+        <div class="field">
+          <label for="q">Time Quantum (for RR)</label>
+          <input id="q" />
+        </div>
+      </div>
+
+      <button onclick="calculate()">Calculate</button>
+      <button onclick="compareAll()">Compare All</button>
+
+      <table>
+        <tr>
+          <th>P</th>
+          <th>AT</th>
+          <th>BT</th>
+          <th>CT</th>
+          <th>TAT</th>
+          <th>WT</th>
+        </tr>
+        <tbody id="table"></tbody>
+      </table>
+
+      <div class="stats" id="stats"></div>
+
+      <div id="gantt"></div>
+
+      <table id="comparison">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Avg WT</th>
+            <th>Avg TAT</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <script>
+      function fcfs(p, at, bt) {
+        let n = p.length;
+        let ct = [],
+          tat = [],
+          wt = [];
+
+        for (let i = 0; i < n - 1; i++) {
+          for (let j = i + 1; j < n; j++) {
+            if (at[i] > at[j]) {
+              [at[i], at[j]] = [at[j], at[i]];
+              [bt[i], bt[j]] = [bt[j], bt[i]];
+              [p[i], p[j]] = [p[j], p[i]];
+            }
+          }
+        }
+
+        ct[0] = at[0] + bt[0];
+
+        for (let i = 1; i < n; i++) {
+          if (ct[i - 1] < at[i]) {
+            ct[i] = at[i] + bt[i];
+          } else {
+            ct[i] = ct[i - 1] + bt[i];
+          }
+        }
+
+        for (let i = 0; i < n; i++) {
+          tat[i] = ct[i] - at[i];
+          wt[i] = tat[i] - bt[i];
+        }
+
+        let gantt = [];
+        for (let i = 0; i < n; i++) {
+          gantt.push({ label: p[i], size: bt[i] });
+        }
+
+        return [p, at, bt, ct, tat, wt, gantt];
+      }
+
+      function sjf(p, at, bt) {
+        let n = p.length;
+        let ct = [],
+          tat = [],
+          wt = [];
+        let completed = new Array(n).fill(false);
+        let gantt = [];
+        let time = 0;
+
+        for (let i = 0; i < n - 1; i++) {
+          for (let j = i + 1; j < n; j++) {
+            if (at[i] > at[j]) {
+              [at[i], at[j]] = [at[j], at[i]];
+              [bt[i], bt[j]] = [bt[j], bt[i]];
+              [p[i], p[j]] = [p[j], p[i]];
+            }
+          }
+        }
+
+        for (let count = 0; count < n; count++) {
+          let shortest = -1;
+
+          for (let i = 0; i < n; i++) {
+            if (!completed[i] && at[i] <= time) {
+              if (shortest === -1 || bt[i] < bt[shortest]) {
+                shortest = i;
+              }
+            }
+          }
+
+          if (shortest === -1) {
+            for (let i = 0; i < n; i++) {
+              if (!completed[i]) {
+                if (shortest === -1 || at[i] < at[shortest]) {
+                  shortest = i;
+                }
+              }
+            }
+            time = at[shortest];
+          }
+
+          time += bt[shortest];
+          ct[shortest] = time;
+          completed[shortest] = true;
+          gantt.push({ label: p[shortest], size: bt[shortest] });
+        }
+
+        for (let i = 0; i < n; i++) {
+          tat[i] = ct[i] - at[i];
+          wt[i] = tat[i] - bt[i];
+        }
+
+        return [p, at, bt, ct, tat, wt, gantt];
+      }
+
+      function roundRobin(p, at, bt, q) {
+        let n = bt.length;
+        let rem = [...bt];
+        let ct = new Array(n).fill(0);
+        let gantt = [];
+        let time = 0;
+        let completed = 0;
+        let visited = new Array(n).fill(false);
+        let queue = [];
+
+        for (let i = 0; i < n; i++) {
+          if (at[i] <= time) {
+            queue.push(i);
+            visited[i] = true;
+          }
+        }
+
+        while (completed < n) {
+          if (queue.length === 0) {
+            let next = 9999;
+            for (let i = 0; i < n; i++) {
+              if (rem[i] > 0 && at[i] < next) next = at[i];
+            }
+            time = next;
+            for (let i = 0; i < n; i++) {
+              if (!visited[i] && at[i] <= time && rem[i] > 0) {
+                queue.push(i);
+                visited[i] = true;
+              }
+            }
+          }
+
+          let idx = queue.shift();
+          let runFor = Math.min(rem[idx], q);
+
+          gantt.push({ label: p[idx], size: runFor });
+          time += runFor;
+          rem[idx] -= runFor;
+
+          for (let i = 0; i < n; i++) {
+            if (!visited[i] && at[i] <= time && rem[i] > 0) {
+              queue.push(i);
+              visited[i] = true;
+            }
+          }
+
+          if (rem[idx] === 0) {
+            ct[idx] = time;
+            completed++;
+          } else {
+            queue.push(idx);
+          }
+
+          if (completed < n) {
+            time += 1;
+          }
+        }
+
+        let tat = [],
+          wt = [];
+
+        for (let i = 0; i < n; i++) {
+          tat[i] = ct[i] - at[i];
+          wt[i] = tat[i] - bt[i];
+        }
+
+        return [p, at, bt, ct, tat, wt, gantt];
+      }
+
+      function srtf(p, at, bt) {
+        let n = p.length;
+        let rem = [...bt];
+        let ct = new Array(n).fill(0);
+        let time = 0;
+        let completed = 0;
+        let ganttRaw = [];
+
+        while (completed < n) {
+          let min = 9999;
+          let idx = -1;
+
+          for (let i = 0; i < n; i++) {
+            if (at[i] <= time && rem[i] > 0 && rem[i] < min) {
+              min = rem[i];
+              idx = i;
+            }
+          }
+
+          if (idx == -1) {
+            time++;
+            continue;
+          }
+
+          ganttRaw.push(idx);
+          rem[idx]--;
+          time++;
+
+          if (rem[idx] == 0) {
+            ct[idx] = time;
+            completed++;
+          }
+        }
+
+        let gantt = [];
+        let i = 0;
+
+        while (i < ganttRaw.length) {
+          let j = i;
+          while (j < ganttRaw.length && ganttRaw[j] === ganttRaw[i]) j++;
+          gantt.push({ label: p[ganttRaw[i]], size: j - i });
+          i = j;
+        }
+
+        let tat = [],
+          wt = [];
+
+        for (let i = 0; i < n; i++) {
+          tat[i] = ct[i] - at[i];
+          wt[i] = tat[i] - bt[i];
+        }
+
+        return [p, at, bt, ct, tat, wt, gantt];
+      }
+
+      function calculate() {
+        let n = parseInt(document.getElementById("n").value);
+        let bt = document.getElementById("bt").value.split(" ").map(Number);
+
+        let atInput = document.getElementById("at").value;
+        let at = atInput
+          ? atInput.split(" ").map(Number)
+          : new Array(n).fill(0);
+
+        if (bt.length != n || at.length != n) {
+          alert("Check input!");
+          return;
+        }
+
+        let p = [];
+        for (let i = 1; i <= n; i++) p.push(i);
+
+        let algo = document.getElementById("algo").value;
+        let res;
+
+        if (algo == "FCFS") res = fcfs([...p], [...at], [...bt]);
+        else if (algo == "SJF") res = sjf([...p], [...at], [...bt]);
+        else if (algo == "Round Robin") {
+          let q = parseInt(document.getElementById("q").value);
+          res = roundRobin([...p], [...at], [...bt], q);
+        } else res = srtf([...p], [...at], [...bt]);
+
+        show(res);
+      }
+
+      function show(res) {
+        let [p, at, bt, ct, tat, wt, gantt] = res;
+
+        let table = document.getElementById("table");
+        let ganttDiv = document.getElementById("gantt");
+        let stats = document.getElementById("stats");
+
+        table.innerHTML = "";
+        ganttDiv.innerHTML = "";
+
+        let totalWT = 0,
+          totalTAT = 0;
+
+        for (let i = 0; i < p.length; i++) {
+          table.innerHTML += `
+        <tr>
+        <td>P${p[i]}</td>
+        <td>${at[i]}</td>
+        <td>${bt[i]}</td>
+        <td>${ct[i]}</td>
+        <td>${tat[i]}</td>
+        <td>${wt[i]}</td>
+        </tr>`;
+
+          totalWT += wt[i];
+          totalTAT += tat[i];
+        }
+
+        for (let i = 0; i < gantt.length; i++) {
+          let block = document.createElement("div");
+          block.className = "block";
+          block.style.flex = gantt[i].size;
+          block.innerText = "P" + gantt[i].label;
+          ganttDiv.appendChild(block);
+        }
+
+        stats.innerHTML =
+          "Avg WT: " +
+          (totalWT / p.length).toFixed(2) +
+          " | Avg TAT: " +
+          (totalTAT / p.length).toFixed(2);
+      }
+
+      function compareAll() {
+        let n = parseInt(document.getElementById("n").value);
+        let bt = document.getElementById("bt").value.split(" ").map(Number);
+
+        let atInput = document.getElementById("at").value;
+        let at = atInput
+          ? atInput.split(" ").map(Number)
+          : new Array(n).fill(0);
+
+        let p = [];
+        for (let i = 1; i <= n; i++) p.push(i);
+
+        function avg(wt, tat) {
+          let w = 0,
+            t = 0;
+          for (let i = 0; i < wt.length; i++) {
+            w += wt[i];
+            t += tat[i];
+          }
+          return [(w / wt.length).toFixed(2), (t / tat.length).toFixed(2)];
+        }
+
+        let r1 = fcfs([...p], [...at], [...bt]);
+        let r2 = sjf([...p], [...at], [...bt]);
+        let q = parseInt(document.getElementById("q").value) || 2;
+        let r3 = roundRobin([...p], [...at], [...bt], q);
+        let r4 = srtf([...p], [...at], [...bt]);
+
+        let data = [
+          ["FCFS", ...avg(r1[5], r1[4])],
+          ["SJF", ...avg(r2[5], r2[4])],
+          ["RR", ...avg(r3[5], r3[4])],
+          ["SRTF", ...avg(r4[5], r4[4])],
+        ];
+
+        let tbody = document.querySelector("#comparison tbody");
+        tbody.innerHTML = "";
+
+        for (let i = 0; i < data.length; i++) {
+          tbody.innerHTML += `
+        <tr>
+        <td>${data[i][0]}</td>
+        <td>${data[i][1]}</td>
+        <td>${data[i][2]}</td>
+        </tr>`;
+        }
+      }
+    </script>
+  </body>
+</html>
